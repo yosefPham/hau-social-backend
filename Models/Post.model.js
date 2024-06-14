@@ -27,6 +27,9 @@ const PostSchema = Schema({
     commentsCount: {
         type: Number,
     },
+    isLike: {
+        type: Boolean,
+    }
 },
 { timestamps: {} })
 

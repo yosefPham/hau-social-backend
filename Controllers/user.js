@@ -16,6 +16,7 @@ const index = async (req, res) => {
             .populate('followings.userId', ['nickname', '_id', 'fullname', 'bio'])
             .populate('followers.userId', ['nickname', '_id', 'fullname', 'bio'])
             .select('-username -password')
+            .sort({createdAt: -1})
 
         
         const resCheckFl = await checkFl(userId, result)

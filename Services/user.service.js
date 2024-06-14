@@ -42,31 +42,25 @@ const checkFl = async (userId, listUser) => {
   return res
 }
 
-const checkLikePost = async (userId, listUser) => {
-  const res =  listUser?.map((user) => {
-    let isFollower = false;
-    let isFollowing = false;
-    user?.followings?.map((userFollowings) => {
-      if (userFollowings?.userId?._id?.toString() === userId) {
-        isFollower = true;
+const checkLikePost = async (userId, listPost) => {
+  const list = []
+  listPost?.map((post) => {
+    let isLike = false;
+    post?.likes?.map((userLike) => {
+      if (userLike?.userId?._id?.toString() === userId) {
+        isLike = true;
       }
     });
     
-    user?.followers?.map((userFollowers) => {
-      if (userFollowers?.userId?._id?.toString() === userId) {
-        isFollowing = true;
-      }
-    });
-    if (isFollower && isFollowing) {
-      user.status = "isFriend";
-    } else if (isFollower) {
-      user.status = "isFollower";
-    } else if (isFollowing) {
-      user.status = "isFollowing";
+    if (isLike) {
+      post.isLike = isLike;
+    } else {
+      post.isLike = isLike;
     }
-    return user
+    console.log(post);
+    list.push(post)
   });
-  return res
+  return list
 }
 
 module.exports = { generateRandomString, checkFl, checkLikePost }

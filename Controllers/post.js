@@ -5,23 +5,43 @@ const { generateRandomString, checkLikePost } = require('../Services/user.servic
 
 const index = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const userId = req.query.userId
-
-        const skip = (page - 1) * limit; 
         const result = await Post.find({_id: { $ne: userId }})
-            .skip(skip)
             .limit(limit)
-            .populate('userId', ['nickname', '_id', 'fullname', 'bio', 'avatar'])
-            .sort({updatedAt: -1})
-
-        
-        const resCheckFl = await checkLikePost(userId, result)
+            .populate('userId', ['nickname', '_id', 'fullname', 'bio', 'avatar', 'tick'])
+            .sort({createdAt: -1})
+        const totalCount = await Post.countDocuments();
+        const resCheckLike = await checkLikePost(userId, result)
         return res.status(200).json({
-            result: resCheckFl,
+            result: resCheckLike,
             status: 200,
-            currentPage: page
+            total: totalCount
+        });
+        
+    } catch (err) {
+        console.log('err', err);
+        return res.status(500).json({
+            error: 'Internal Server Error',
+            status: 500
+        });
+    }
+};
+
+const getPostUser = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const userId = req.query.userId
+        const result = await Post.find({ userId: userId })
+            .limit(limit)
+            .populate('userId', ['nickname', '_id', 'fullname', 'bio', 'avatar', 'tick'])
+            .sort({createdAt: -1})
+        const totalCount = await Post.countDocuments();
+        const resCheckLike = await checkLikePost(userId, result)
+        return res.status(200).json({
+            result: resCheckLike,
+            status: 200,
+            total: totalCount
         });
         
     } catch (err) {
@@ -50,6 +70,23 @@ const newPost = async (req, res, next) => {
 
 const getPostOne = async (req, res) => {
     try {
+        const postId = req.params.id; 
+        const userId = req.query.userId
+        let post = await Post.findById({_id: postId})
+            .populate('userId', ['nickname', '_id', 'fullname', 'bio', 'avatar'])
+            
+        const resCheckLike = await checkLikePost(userId, [post])
+        if (!post) {
+            return res.status(404).json({
+            message: 'User not found',
+            status: 404
+            });
+        } else {
+            return res.status(200).json({
+                result: resCheckLike,
+                status: 200
+            });
+        }
     
     } catch (err) {
         console.log('Error:', err);
@@ -69,9 +106,8 @@ const updatePost = async (req, res) => {
             _id: postId, 
             likes: { $elemMatch: { userId: body?.likes?.userId } },
         });
-        let updatedUserFollowing
-        let updatedUserFollower
-        if (isExists && body?.likes.type === 'Unlike') {
+        let updatedUserLike
+        if (isExists && !body?.likes.type.isLike) {
             updatedUserLike = await Post.updateOne(
                 { _id: postId },
                 {
@@ -80,12 +116,12 @@ const updatePost = async (req, res) => {
                     },
                 }
             );
+            // await User.updateOne()
         } else if (isExists) {
             return res.status(404).json({ error: 'Người dùng đã tồn tại' });
-        } 
-        else if (!isExists && body?.followings.type === 'Like') {
-            if (body?.likes.type === 'Like') {
-                updatedUserFollowing = await Post.updateOne(
+        } else if (!isExists && body?.likes.type.isLike) {
+            if (body?.likes.type) {
+                updatedUserLike = await Post.updateOne(
                     { _id: postId },
                     {
                         $push: {
@@ -97,14 +133,14 @@ const updatePost = async (req, res) => {
         } else {
             return res.status(404).json({ error: 'Bài viết này này bạn chưa like' });
         }
-        if (updatedUserFollowing.modifiedCount === 1 && updatedUserFollower.modifiedCount === 1 ) {
-            const result = await User.findOne({_id: postId})
+        if (updatedUserLike?.modifiedCount === 1) {
+            const result = await Post.findOne({_id: postId})
             return res.status(200).json({
                 status: 200,
                 result: result,
             });
         } else {
-            console.log('User not found', updatedUserFollowing, updatedUserFollower)
+            console.log('Post not found', updatedUserLike)
         }
         
     } catch (err) {
@@ -117,5 +153,6 @@ module.exports = {
     index,
     newPost,
     getPostOne,
-    updatePost
+    updatePost,
+    getPostUser
 }
